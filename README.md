@@ -4,11 +4,11 @@ Modern React TypeScript frontend application for personnel management.
 
 ## Features
 
-- 👥 **Employee Management** - Add, edit, and manage employee profiles
-- 🏢 **Departments** - Organize employees by departments
-- 📅 **Attendance Tracking** - Track employee attendance and working hours
-- 🏖️ **Leave Management** - Handle leave requests and approvals
-- 📊 **Dashboard** - Overview of company statistics
+-  **Employee Management** - Add, edit, and manage employee profiles
+-  **Departments** - Organize employees by departments
+-  **Attendance Tracking** - Track employee attendance and working hours
+-  **Leave Management** - Handle leave requests and approvals
+-  **Dashboard** - Overview of company statistics
 
 ## Tech Stack
 
@@ -77,6 +77,3 @@ Add new pages in `src/pages/` and new types in `src/types/index.ts`.
 
 API calls are centralized in `src/services/api.ts`.
 
-## License
-
-MIT
