@@ -1,29 +1,29 @@
-# HR Management System - Frontend
+# Система управления персоналом (HR Management System) - Фронтенд
 
-Modern React TypeScript frontend application for personnel management.
+Современное фронтенд-приложение на React и TypeScript для управления персоналом.
 
-## Features
+## Возможности
 
-- 👥 **Employee Management** - Add, edit, and manage employee profiles
-- 🏢 **Departments** - Organize employees by departments
-- 📅 **Attendance Tracking** - Track employee attendance and working hours
-- 🏖️ **Leave Management** - Handle leave requests and approvals
-- 📊 **Dashboard** - Overview of company statistics
+- **Управление сотрудниками** - добавление, редактирование и управление профилями сотрудников.
+- **Департаменты** - организация сотрудников по отделам компании.
+- **Учет посещаемости** - отслеживание явки сотрудников и учет рабочего времени.
+- **Управление отпусками** - обработка запросов на отпуск и их утверждение.
+- **Панель управления (Dashboard)** - общий обзор статистики компании.
 
-## Tech Stack
+## Стек технологий
 
-- **React 18** - UI library
-- **TypeScript** - Type safety
-- **Vite** - Build tool and dev server
-- **React Router** - Navigation
-- **Axios** - HTTP client
-- **CSS** - Styling
+- **React 18** - библиотека для создания пользовательских интерфейсов.
+- **TypeScript** - типизация для обеспечения безопасности кода.
+- **Vite** - инструмент сборки и сервер для разработки.
+- **React Router** - маршрутизация и навигация.
+- **Axios** - HTTP-клиент для запросов.
+- **CSS** - стилизация интерфейса.
 
-## Getting Started
+## Начало работы
 
-### Prerequisites
+### Системные требования
 
-- Node.js 16+ and npm/yarn
+- Node.js версии 16 и выше, а также npm или yarn.
 
 ### Installation
 
@@ -74,20 +74,14 @@ cd Backend
 export REACT_APP_API_URL=http://your-api.com/api
 ```
 
-## Component Overview
+## Обзор компонентов
 
-- **Dashboard** - Statistics and recent activity overview
-- **Employees** - Employee list with CRUD operations
-- **Departments** - Department management
-- **Attendance** - Daily attendance tracking and statistics
-- **Leave** - Leave request management
+Обзор компонентов
+Dashboard — панель со статистикой и обзором последних действий.
+Employees — список сотрудников с поддержкой всех CRUD-операций (создание, чтение, обновление, удаление).
+Attendance — ежедневный учет посещаемости и статистика рабочего времени.
+Leave — управление заявками на отпуска и отгулы.
 
-## Development
-
-Add new pages in `src/pages/` and new types in `src/types/index.ts`.
-
-API calls are centralized in `src/services/api.ts`.
-
-## License
-
-MIT
+## Разработка
+Добавляйте новые страницы в папку src/pages/, а новые типы данных — в файл src/types/index.ts.
+Все API-запросы централизованно хранятся и управляются в src/services/api.ts.
