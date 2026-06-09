@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import './TimeSheet.css'
 
 export default function TimeSheet({ user }) {
@@ -6,6 +6,10 @@ export default function TimeSheet({ user }) {
     { id: 1, project: 'Сайт', activity: 'Frontend', type: 'Разработка', time: '3 часа', description: 'Разработка интерфейса учёта рабочего времени', date: '01.06.2026', status: 'Черновик' },
     { id: 2, project: 'Сайт', activity: 'Backend', type: 'Разработка', time: '3 часа', description: 'Разработка интерфейса учёта рабочего времени', date: '02.06.2026', status: 'Утверждено' },
     { id: 3, project: 'Сайт', activity: 'Testing', type: 'Разработка', time: '3 часа', description: 'Разработка интерфейса учёта рабочего времени', date: '03.06.2026', status: 'Отправлено' },
+    { id: 4, project: 'Мобильное приложение', activity: 'Design', type: 'Дизайн', time: '2 часа', description: 'Дизайн интерфейса приложения', date: '05.06.2026', status: 'Утверждено' },
+    { id: 5, project: 'Система отчетности', activity: 'Database', type: 'Разработка', time: '4 часа', description: 'Проектирование базы данных', date: '06.06.2026', status: 'Черновик' },
+    { id: 6, project: 'Сайт', activity: 'API', type: 'Разработка', time: '3 часа', description: 'Разработка REST API', date: '08.06.2026', status: 'Утверждено' },
+    { id: 7, project: 'Мобильное приложение', activity: 'Frontend', type: 'Разработка', time: '3 часа', description: 'Разработка мобильного интерфейса', date: '09.06.2026', status: 'Отправлено' },
   ])
 
   const [selectedRows, setSelectedRows] = useState(new Set())
@@ -13,16 +17,99 @@ export default function TimeSheet({ user }) {
   const [project, setProject] = useState('Все')
   const [status, setStatus] = useState('Все')
   const [periodType, setPeriodType] = useState('Месяц')
-  const [startDate, setStartDate] = useState('01.06.2026')
-  const [endDate, setEndDate] = useState('30.06.2026')
+  const [currentDate, setCurrentDate] = useState(new Date(2026, 5, 1))
   const [editingTask, setEditingTask] = useState(null)
   const [showModal, setShowModal] = useState(false)
 
-  const filteredTasks = tasks.filter(task => {
-    const statusMatch = status === 'Все' || task.status === status
-    const projectMatch = project === 'Все' || task.project === project
-    return statusMatch && projectMatch
-  })
+  // Helper functions for date operations
+  const parseDate = (dateStr) => {
+    const [day, month, year] = dateStr.split('.').map(Number)
+    return new Date(year, month - 1, day)
+  }
+
+  const formatDate = (date) => {
+    const day = String(date.getDate()).padStart(2, '0')
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const year = date.getFullYear()
+    return `${day}.${month}.${year}`
+  }
+
+  const getDateRange = (periodType, baseDate) => {
+    const date = new Date(baseDate)
+    let start, end
+
+    switch (periodType) {
+      case 'День':
+        start = new Date(date)
+        end = new Date(date)
+        break
+      case 'Неделя':
+        start = new Date(date)
+        const day = start.getDay()
+        const diff = start.getDate() - day + (day === 0 ? -6 : 1)
+        start.setDate(diff)
+        end = new Date(start)
+        end.setDate(end.getDate() + 6)
+        break
+      case 'Месяц':
+        start = new Date(date.getFullYear(), date.getMonth(), 1)
+        end = new Date(date.getFullYear(), date.getMonth() + 1, 0)
+        break
+      default:
+        start = new Date(date)
+        end = new Date(date)
+    }
+
+    return { start, end }
+  }
+
+  const { start: startDate, end: endDate } = getDateRange(periodType, currentDate)
+
+  const handlePeriodChange = (newPeriodType) => {
+    setPeriodType(newPeriodType)
+  }
+
+  const handlePrevious = () => {
+    const newDate = new Date(currentDate)
+    switch (periodType) {
+      case 'День':
+        newDate.setDate(newDate.getDate() - 1)
+        break
+      case 'Неделя':
+        newDate.setDate(newDate.getDate() - 7)
+        break
+      case 'Месяц':
+        newDate.setMonth(newDate.getMonth() - 1)
+        break
+    }
+    setCurrentDate(newDate)
+  }
+
+  const handleNext = () => {
+    const newDate = new Date(currentDate)
+    switch (periodType) {
+      case 'День':
+        newDate.setDate(newDate.getDate() + 1)
+        break
+      case 'Неделя':
+        newDate.setDate(newDate.getDate() + 7)
+        break
+      case 'Месяц':
+        newDate.setMonth(newDate.getMonth() + 1)
+        break
+    }
+    setCurrentDate(newDate)
+  }
+
+  const filteredTasks = useMemo(() => {
+    return tasks.filter(task => {
+      const taskDate = parseDate(task.date)
+      const statusMatch = status === 'Все' || task.status === status
+      const projectMatch = project === 'Все' || task.project === project
+      const dateMatch = taskDate >= startDate && taskDate <= endDate
+      return statusMatch && projectMatch && dateMatch
+    })
+  }, [tasks, status, project, startDate, endDate])
 
   const toggleRowSelection = (id) => {
     const newSelected = new Set(selectedRows)
@@ -74,7 +161,7 @@ export default function TimeSheet({ user }) {
       type: '',
       time: '',
       description: '',
-      date: startDate,
+      date: formatDate(new Date()),
       status: 'Черновик'
     })
     setShowModal(true)
@@ -110,7 +197,10 @@ export default function TimeSheet({ user }) {
     alert('Выбранные задачи отправлены на утверждение')
   }
 
-  const totalTime = filteredTasks.reduce((sum) => sum + 3, 0)
+  const totalTime = filteredTasks.reduce((sum, task) => {
+    const hours = parseInt(task.time) || 0
+    return sum + hours
+  }, 0)
 
   return (
     <div className="timesheet-container">
@@ -164,17 +254,17 @@ export default function TimeSheet({ user }) {
         </div>
 
         <div className="period-controls">
-          <button className={periodType === 'День' ? 'active' : ''} onClick={() => setPeriodType('День')}>День</button>
-          <button className={periodType === 'Неделя' ? 'active' : ''} onClick={() => setPeriodType('Неделя')}>Неделя</button>
-          <button className={periodType === 'Месяц' ? 'active' : ''} onClick={() => setPeriodType('Месяц')}>Месяц</button>
+          <button className={periodType === 'День' ? 'active' : ''} onClick={() => handlePeriodChange('День')}>День</button>
+          <button className={periodType === 'Неделя' ? 'active' : ''} onClick={() => handlePeriodChange('Неделя')}>Неделя</button>
+          <button className={periodType === 'Месяц' ? 'active' : ''} onClick={() => handlePeriodChange('Месяц')}>Месяц</button>
         </div>
 
         <div className="date-range">
-          <input type="text" value={startDate} readOnly />
+          <input type="text" value={formatDate(startDate)} readOnly />
           <span>-</span>
-          <input type="text" value={endDate} readOnly />
-          <button className="btn-nav">◀</button>
-          <button className="btn-nav">▶</button>
+          <input type="text" value={formatDate(endDate)} readOnly />
+          <button className="btn-nav" onClick={handlePrevious}>◀</button>
+          <button className="btn-nav" onClick={handleNext}>▶</button>
         </div>
 
         <button className="btn-add" onClick={handleNew}>+</button>
