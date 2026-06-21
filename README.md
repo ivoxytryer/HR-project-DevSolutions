@@ -1,31 +1,58 @@
-# Система управления персоналом (HR Management System) - Фронтенд
+# DevSolutions HR System
 
-Современное фронтенд-приложение на React и TypeScript для управления персоналом.
+Полный стек HR-системы для управления сотрудниками, проектами и учетом рабочего времени.
 
-## Возможности
+## О проекте
 
-- **Управление сотрудниками** - добавление, редактирование и управление профилями сотрудников.
-- **Департаменты** - организация сотрудников по отделам компании.
-- **Учет посещаемости** - отслеживание явки сотрудников и учет рабочего времени.
-- **Управление отпусками** - обработка запросов на отпуск и их утверждение.
-- **Панель управления (Dashboard)** - общий обзор статистики компании.
+Проект включает:
+- **Backend** на Go + Gin + PostgreSQL
+- **Frontend** на React + Vite + Axios
+- **База данных** с миграциями и начальными тестовыми данными
 
-## Стек технологий
+## Основные задачи
 
-- **React 18** - библиотека для создания пользовательских интерфейсов.
-- **TypeScript** - типизация для обеспечения безопасности кода.
-- **Vite** - инструмент сборки и сервер для разработки.
-- **React Router** - маршрутизация и навигация.
-- **Axios** - HTTP-клиент для запросов.
-- **CSS** - стилизация интерфейса.
+- Управление сотрудниками и отделами
+- Управление проектами
+- Учет рабочего времени и статусов записей
+- Аутентификация и роли (admin/manager/employee)
+- CRUD операции для всех основных сущностей
 
-## Начало работы
+## Структура проекта
 
-### Системные требования
+```
+HR-project-DevSolutions/
+├── Backend/          # Серверная часть на Go
+│   ├── cmd/api/      # HTTP-сервер
+│   ├── cmd/migrate/  # Миграции и инициализация БД
+│   ├── cmd/hash-password/ # Утилита генерации bcrypt-хеша
+│   ├── internal/     # Модели, хендлеры, репозитории
+│   ├── migrations/   # SQL-скрипты создания схемы и данных
+│   └── .env          # конфигурация БД
+├── Frontend/         # Веб-приложение на React
+│   ├── src/          # Исходный код фронтенда
+│   ├── package.json
+│   └── vite.config.js
+├── README.md         # Общая документация
+└── PRACTICE_REPORT.md# Отчет по практике
+```
 
-- Node.js версии 16 и выше, а также npm или yarn.
+## Быстрый запуск
 
-### Installation
+### Backend
+
+```bash
+cd Backend
+
+# Настройте подключение к БД в .env
+# Пример .env:
+# DATABASE_URL=postgres://postgres:123@localhost:5432/hr_db?sslmode=disable
+
+go run ./cmd/migrate/
+
+go run ./cmd/api/main.go
+```
+
+### Frontend
 
 ```bash
 cd Frontend
@@ -33,55 +60,56 @@ npm install
 npm run dev
 ```
 
-### Backend
+Откройте приложение в браузере: `http://localhost:5173`
 
-```bash
-cd Backend
-# TODO: инструкции по запуску backend
-```
+## Пользовательские данные
 
-##  Основные технологии
+- Email: `admin@example.com`
+- Пароль: `admin123`
 
-### Frontend
-- React 18+
-- Vite (сборщик проектов)
-- JavaScript/JSX
+## API Endpoints
 
-### Backend
-- TODO
+### Аутентификация
+- `POST /api/auth/login`
+- `POST /api/auth/register`
+- `GET /api/auth/me`
+- `POST /api/auth/change-password`
+- `POST /api/auth/forgot-password`
+- `POST /api/auth/reset-password`
 
-##  Workflow
+### Сотрудники
+- `GET /api/employees`
+- `GET /api/employees/:id`
+- `POST /api/employees`
+- `PUT /api/employees/:id`
+- `DELETE /api/employees/:id`
 
-1. **Разработка** - работайте в соответствующем модуле
-2. **Общие утилиты** - помещайте в `Frontend/src/shared/`
-3. **API** - обновляйте `Frontend/src/shared/services/api.ts`
-4. **Backend** - разрабатывайте в папке `Backend/`
+### Проекты
+- `GET /api/projects`
+- `GET /api/projects/:id`
+- `POST /api/projects`
+- `PUT /api/projects/:id`
+- `DELETE /api/projects/:id`
 
----
+### Учет времени
+- `GET /api/attendance`
+- `GET /api/attendance/:id`
+- `POST /api/attendance`
+- `PUT /api/attendance/:id`
+- `DELETE /api/attendance/:id`
 
-**Переструктурировано:** 2026-06-09
-├── services/        # API services
-├── types/           # TypeScript types
-├── App.tsx          # Main app component
-├── main.tsx         # Entry point
-└── index.css        # Global styles
-```
+## Технологии
 
-## API Integration
+- **Go** и **Gin**: API и бизнес-логика
+- **PostgreSQL**: хранение данных
+- **React**: фронтенд интерфейс
+- **Vite**: сборка и dev сервер
+- **Axios**: HTTP-запросы
 
-Приложение настроено на подключение к бэкенд-API. Задайте базовый URL-адрес API с помощью переменной окружения REACT_APP_API_URL
-```bash
-export REACT_APP_API_URL=http://your-api.com/api
-```
+## Примечания
 
-## Обзор компонентов
+- `Backend/cmd/migrate/` запускает миграции и наполняет базу тестовыми данными
+- `Backend/cmd/api/main.go` поднимает API сервер на `http://localhost:8000`
+- `Frontend/src/shared/services/api.ts` содержит фронтенд-клиент для работы с API
 
-Обзор компонентов
-Dashboard - панель со статистикой и обзором последних действий.
-Employees - список сотрудников с поддержкой всех CRUD-операций (создание, чтение, обновление, удаление).
-Attendance - ежедневный учет посещаемости и статистика рабочего времени.
-Leave - управление заявками на отпуска и отгулы.
-
-## Разработка
-Добавляйте новые страницы в папку src/pages/, а новые типы данных — в файл src/types/index.ts.
-Все API-запросы централизованно хранятся и управляются в src/services/api.ts.
+Для подробного отчета по практике см. `PRACTICE_REPORT.md`.

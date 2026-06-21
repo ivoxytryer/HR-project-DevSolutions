@@ -1,18 +1,21 @@
 import { useState } from 'react'
+import { useAuth } from '../../shared/context/AuthContext'
 import './Login.css'
 
-export default function Login({ onLogin }) {
+export default function Login() {
+  const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [isRegister, setIsRegister] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  const handleLogin = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     setLoading(true)
 
-    // Simple validation
+    // Validation
     if (!email || !password) {
       setError('Заполните все поля')
       setLoading(false)
@@ -25,48 +28,35 @@ export default function Login({ onLogin }) {
       return
     }
 
-    // Simulate API call
-    setTimeout(() => {
-      // Mock authentication with role assignment
-      let role = 'user' // Default role for regular users
-      
-      // Check for special accounts
-      if (email === 'project@mail.ru' && password === '123') {
-        role = 'project_manager'
-      } else if (email === 'employe@mail.ru' && password === '123') {
-        role = 'hr_manager'
-      } else if (email && password.length >= 3) {
-        role = 'user'
-      } else {
-        setError('Неверные учетные данные')
+    try {
+      if (isRegister) {
+        // Registration
+        // const { register } = useAuth()
+        // await register(email, password)
+        // For now, just login
+        setError('Регистрация будет доступна позже')
         setLoading(false)
-        return
+      } else {
+        // Login
+        await login(email, password)
+        // App component will automatically redirect after user is set
       }
-      
-      onLogin({ 
-        email, 
-        name: email.split('@')[0],
-        role: role
-      })
+    } catch (err) {
+      setError('Ошибка авторизации. Проверьте email и пароль')
       setLoading(false)
-    }, 500)
-  }
-
-  const handleForgotPassword = () => {
-    alert('Переход на страницу восстановления пароля')
-    // TODO: Navigate to forgot password page
+    }
   }
 
   return (
     <div className="login-container">
       <div className="login-header">
-        <h1>DevSolutions</h1>
+        <h1>DevSolutions HR</h1>
       </div>
 
       <div className="login-box">
-        <h2>Вход DevSolutions</h2>
+        <h2>{isRegister ? 'Регистрация' : 'Вход'}</h2>
 
-        <form onSubmit={handleLogin}>
+        <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Email</label>
             <input
@@ -87,17 +77,31 @@ export default function Login({ onLogin }) {
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
             />
-            <a href="#" onClick={(e) => { e.preventDefault(); handleForgotPassword() }} className="forgot-link">
-              Забыли пароль?
-            </a>
+            {!isRegister && (
+              <a href="#" onClick={(e) => { e.preventDefault() }} className="forgot-link">
+                Забыли пароль?
+              </a>
+            )}
           </div>
 
           {error && <div className="error-message">{error}</div>}
 
           <button type="submit" className="login-btn" disabled={loading}>
-            {loading ? 'Загрузка...' : 'Войти'}
+            {loading ? 'Загрузка...' : isRegister ? 'Зарегистрироваться' : 'Войти'}
           </button>
         </form>
+
+        <div className="register-link">
+          {isRegister ? (
+            <>
+              Уже есть аккаунт? <a onClick={() => setIsRegister(false)}>Войти</a>
+            </>
+          ) : (
+            <>
+              Нет аккаунта? <a onClick={() => setIsRegister(true)}>Зарегистрироваться</a>
+            </>
+          )}
+        </div>
       </div>
     </div>
   )

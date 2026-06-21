@@ -1,24 +1,69 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { projectAPI } from '../../shared/services/api'
+
+// Date formatting utilities
+const parseDate = (dateStr) => {
+  if (!dateStr) return null
+  // Handle dot format: "15.06.2026"
+  if (dateStr.includes('.')) {
+    const [day, month, year] = dateStr.split('.')
+    return new Date(year, month - 1, day)
+  }
+  // Handle ISO format: "2026-06-15" or "2026-06-16T00:00:00Z"
+  return new Date(dateStr)
+}
+
+const formatDate = (date) => {
+  if (!date) return ''
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+  return `${day}.${month}.${year}`
+}
+
+const formatDateForBackend = (dateStr) => {
+  if (!dateStr) return ''
+  const date = parseDate(dateStr)
+  return date ? date.toISOString().slice(0, 10) : dateStr
+}
+
+const formatDisplayDate = (dateStr) => {
+  const date = parseDate(dateStr)
+  return formatDate(date) || dateStr
+}
 
 export default function Projects({ user, canEdit }) {
-  const [projects, setProjects] = useState([
-    { id: 1, name: 'Сайт', status: 'В работе', lead: 'Иван Петров', type: 'Разработка', startDate: '2026-01-15', endDate: '2026-06-30' },
-    { id: 2, name: 'Мобильное приложение', status: 'Планирование', lead: 'Мария Сидорова', type: 'Дизайн', startDate: '2026-03-01', endDate: '2026-09-30' },
-    { id: 3, name: 'Система отчетности', status: 'Завершено', lead: 'Никита Аминов', type: 'Разработка', startDate: '2025-10-01', endDate: '2026-05-31' },
-  ])
+  const [projects, setProjects] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [projectName, setProjectName] = useState('')
-  const [projectLead, setProjectLead] = useState('')
   const [projectStatus, setProjectStatus] = useState('Планирование')
-  const [projectType, setProjectType] = useState('Разработка')
-  const [projectStartDate, setProjectStartDate] = useState('')
-  const [projectEndDate, setProjectEndDate] = useState('')
   const [selectedRows, setSelectedRows] = useState(new Set())
   const [searchQuery, setSearchQuery] = useState('')
   const [editingProject, setEditingProject] = useState(null)
   const [showModal, setShowModal] = useState(false)
 
+  useEffect(() => {
+    fetchProjects()
+  }, [])
+
+  const fetchProjects = async () => {
+    try {
+      setLoading(true)
+      const response = await projectAPI.getAll()
+      setProjects(response.data || [])
+      setError(null)
+    } catch (err) {
+      setError('Ошибка при загрузке проектов')
+      setProjects([])
+      console.error('Error fetching projects:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const filteredProjects = projects.filter(proj =>
-    proj.name.toLowerCase().includes(searchQuery.toLowerCase())
+    (proj.name?.toLowerCase() || '').includes(searchQuery.toLowerCase())
   )
 
   const toggleRowSelection = (id) => {
@@ -39,31 +84,25 @@ export default function Projects({ user, canEdit }) {
     }
   }
 
-  const addProject = () => {
-    if (!projectName || !projectLead || !projectType || !projectStartDate || !projectEndDate) {
-      alert('Заполните все поля')
+  const addProject = async () => {
+    if (!projectName) {
+      alert('Заполните название проекта')
       return
     }
-    setProjects([...projects, { id: Date.now(), name: projectName, status: projectStatus, lead: projectLead, type: projectType, startDate: projectStartDate, endDate: projectEndDate }])
-    setProjectName('')
-    setProjectLead('')
-    setProjectStatus('Планирование')
-    setProjectType('Разработка')
-    setProjectStartDate('')
-    setProjectEndDate('')
-    alert('Проект добавлен')
-  }
-
-  const handleDelete = () => {
-    if (selectedRows.size === 0) {
-      alert('Выберите проекты для удаления')
-      return
-    }
-    const confirmed = confirm(`Вы уверены? Будет удалено ${selectedRows.size} проект(ов)`)
-    if (confirmed) {
-      setProjects(projects.filter(p => !selectedRows.has(p.id)))
-      setSelectedRows(new Set())
-      alert('Проекты удалены')
+    try {
+      await projectAPI.create({ 
+        name: projectName, 
+        status: projectStatus,
+        start_date: '',
+        end_date: ''
+      })
+      setProjectName('')
+      setProjectStatus('Планирование')
+      alert('Проект добавлен')
+      fetchProjects()
+    } catch (err) {
+      alert('Ошибка при добавлении проекта')
+      console.error('Error adding project:', err)
     }
   }
 
@@ -78,95 +117,132 @@ export default function Projects({ user, canEdit }) {
     setShowModal(true)
   }
 
-  const handleSaveEdit = () => {
-    if (!editingProject.name || !editingProject.lead || !editingProject.type || !editingProject.startDate || !editingProject.endDate) {
-      alert('Заполните все поля')
+  const handleSaveEdit = async () => {
+    if (!editingProject.name) {
+      alert('Заполните название проекта')
       return
     }
-    setProjects(projects.map(p => p.id === editingProject.id ? editingProject : p))
-    setShowModal(false)
-    setEditingProject(null)
-    setSelectedRows(new Set())
-    alert('Проект обновлен')
+    try {
+      await projectAPI.update(String(editingProject.id), { 
+        name: editingProject.name, 
+        status: editingProject.status,
+        start_date: editingProject.start_date,
+        end_date: editingProject.end_date
+      })
+      setShowModal(false)
+      setEditingProject(null)
+      setSelectedRows(new Set())
+      alert('Проект обновлен')
+      fetchProjects()
+    } catch (err) {
+      alert('Ошибка при обновлении проекта')
+      console.error(err)
+    }
   }
 
+  const handleDelete = async () => {
+    if (selectedRows.size === 0) {
+      alert('Выберите проекты для удаления')
+      return
+    }
+    const confirmed = confirm(`Вы уверены? Будет удалено ${selectedRows.size} проект(ов)`)
+    if (confirmed) {
+      try {
+        for (const id of selectedRows) {
+          await projectAPI.delete(String(id))
+        }
+        setSelectedRows(new Set())
+        alert('Проекты удалены')
+        fetchProjects()
+      } catch (err) {
+        alert('Ошибка при удалении проектов')
+        console.error('Error deleting projects:', err)
+      }
+    }
+  }
+
+  if (loading) return <div className="loading">Загрузка проектов...</div>
+
   return (
-    <div className="page">
+    <div className="projects-container">
       <h2>Проекты</h2>
+      {error && <div className="error-message">{error}</div>}
+
       {canEdit && (
-        <div className="add-form">
-          <input type="text" placeholder="Название проекта" value={projectName} onChange={(e) => setProjectName(e.target.value)} />
-          <input type="text" placeholder="Руководитель" value={projectLead} onChange={(e) => setProjectLead(e.target.value)} />
-          <select value={projectType} onChange={(e) => setProjectType(e.target.value)}>
-            <option>Разработка</option>
-            <option>Дизайн</option>
-            <option>Тестирование</option>
-            <option>Консультация</option>
-          </select>
-          <input type="date" value={projectStartDate} onChange={(e) => setProjectStartDate(e.target.value)} title="Дата начала" />
-          <input type="date" value={projectEndDate} onChange={(e) => setProjectEndDate(e.target.value)} title="Дата окончания" />
-          <select value={projectStatus} onChange={(e) => setProjectStatus(e.target.value)}>
-            <option>Планирование</option>
-            <option>В работе</option>
-            <option>Завершено</option>
-          </select>
-          <button onClick={addProject}>Добавить</button>
+        <div className="add-section">
+          <div className="form-group">
+            <input
+              type="text"
+              placeholder="Название проекта"
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+            />
+          </div>
+          <div className="form-group">
+            <select value={projectStatus} onChange={(e) => setProjectStatus(e.target.value)}>
+              <option>Планирование</option>
+              <option>В работе</option>
+              <option>Завершено</option>
+            </select>
+          </div>
+          <button onClick={addProject}>Добавить проект</button>
         </div>
       )}
 
-      <div className="search-bar">
-        <input 
-          type="text" 
-          placeholder="Поиск по названию проекта..." 
-          value={searchQuery} 
+      <div className="search-section">
+        <input
+          type="text"
+          placeholder="Поиск по названию..."
+          value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
       </div>
 
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th style={{ width: '30px' }}>
-              <input type="checkbox" onChange={selectAll} checked={selectedRows.size === filteredProjects.length && filteredProjects.length > 0} />
-            </th>
-            <th>Название</th>
-            <th>Тип</th>
-            <th>Дата начала</th>
-            <th>Дата окончания</th>
-            <th>Статус</th>
-            <th>Руководитель</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredProjects.map(proj => (
-            <tr key={proj.id} className={selectedRows.has(proj.id) ? 'selected' : ''}>
-              <td>
-                <input type="checkbox" checked={selectedRows.has(proj.id)} onChange={() => toggleRowSelection(proj.id)} />
-              </td>
-              <td>{proj.name}</td>
-              <td>{proj.type}</td>
-              <td>{proj.startDate}</td>
-              <td>{proj.endDate}</td>
-              <td>
-                <span className={`status-badge status-${proj.status.toLowerCase().replace(/\s/g, '-')}`}>
-                  {proj.status}
-                </span>
-              </td>
-              <td>{proj.lead}</td>
+      {filteredProjects.length === 0 ? (
+        <p>Проектов не найдено</p>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              {canEdit && (
+                <th>
+                  <input type="checkbox" onChange={selectAll} checked={selectedRows.size === filteredProjects.length && filteredProjects.length > 0} />
+                </th>
+              )}
+              <th>Название</th>
+              <th>Дата начала</th>
+              <th>Дата окончания</th>
+              <th>Статус</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {filteredProjects.map((proj) => (
+              <tr key={proj.id}>
+                {canEdit && (
+                  <td>
+                    <input type="checkbox" checked={selectedRows.has(proj.id)} onChange={() => toggleRowSelection(proj.id)} />
+                  </td>
+                )}
+                <td>{proj.name}</td>
+                <td>{formatDisplayDate(proj.start_date) || '-'}</td>
+                <td>{formatDisplayDate(proj.end_date) || '-'}</td>
+                <td>{proj.status}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
 
-      <div className="table-footer">
-        <p>Всего проектов: {filteredProjects.length}</p>
-        {canEdit && (
-          <div className="action-buttons">
-            <button className="btn-action btn-delete" onClick={handleDelete}>Удалить</button>
-            <button className="btn-action btn-edit" onClick={handleEdit}>Редактировать</button>
-          </div>
-        )}
-      </div>
+      {canEdit && selectedRows.size > 0 && (
+        <div className="action-buttons action-buttons--align">
+          <button onClick={handleEdit} className="btn-edit btn-action">
+            Редактировать
+          </button>
+          <button onClick={handleDelete} className="btn-delete btn-action">
+            Удалить выбранные ({selectedRows.size})
+          </button>
+        </div>
+      )}
 
       {showModal && editingProject && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
@@ -181,25 +257,12 @@ export default function Projects({ user, canEdit }) {
                 <input type="text" value={editingProject.name} onChange={(e) => setEditingProject({ ...editingProject, name: e.target.value })} />
               </div>
               <div className="form-group">
-                <label>Руководитель</label>
-                <input type="text" value={editingProject.lead} onChange={(e) => setEditingProject({ ...editingProject, lead: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Тип</label>
-                <select value={editingProject.type} onChange={(e) => setEditingProject({ ...editingProject, type: e.target.value })}>
-                  <option>Разработка</option>
-                  <option>Дизайн</option>
-                  <option>Тестирование</option>
-                  <option>Консультация</option>
-                </select>
-              </div>
-              <div className="form-group">
                 <label>Дата начала</label>
-                <input type="date" value={editingProject.startDate} onChange={(e) => setEditingProject({ ...editingProject, startDate: e.target.value })} />
+                <input type="date" value={editingProject.start_date || ''} onChange={(e) => setEditingProject({ ...editingProject, start_date: e.target.value })} />
               </div>
               <div className="form-group">
                 <label>Дата окончания</label>
-                <input type="date" value={editingProject.endDate} onChange={(e) => setEditingProject({ ...editingProject, endDate: e.target.value })} />
+                <input type="date" value={editingProject.end_date || ''} onChange={(e) => setEditingProject({ ...editingProject, end_date: e.target.value })} />
               </div>
               <div className="form-group">
                 <label>Статус</label>

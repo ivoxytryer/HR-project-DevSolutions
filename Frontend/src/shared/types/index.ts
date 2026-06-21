@@ -1,9 +1,29 @@
-export interface Employee {
-  id: string;
-  name: string;
+export interface User {
+  id: number;
   email: string;
-  department: string;
+  name: string;
+  role: 'admin' | 'manager' | 'employee';
+  created_at: string;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  token: string;
+  user: User;
+}
+
+export interface Employee {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email?: string;
+  department_id?: number;
   position: string;
+  user_id?: number;
 }
 
 export interface Department {
@@ -18,8 +38,11 @@ export interface Project {
 }
 
 export interface Attendance {
-  id: string;
-  employeeId: string;
+  id: number;
+  employee_id: number;
+  project_id: number;
+  hours: number;
   date: string;
   status: string;
+  description: string;
 }

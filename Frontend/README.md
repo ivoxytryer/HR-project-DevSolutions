@@ -1,82 +1,70 @@
-# HR Management System - Frontend
+# Frontend Application
 
-Modern React TypeScript frontend application for personnel management.
+Веб-интерфейс для HR-системы на React и Vite.
 
-## Features
+## Возможности
 
-- 👥 **Employee Management** - Add, edit, and manage employee profiles
-- 🏢 **Departments** - Organize employees by departments
-- 📅 **Attendance Tracking** - Track employee attendance and working hours
-- 🏖️ **Leave Management** - Handle leave requests and approvals
-- 📊 **Dashboard** - Overview of company statistics
+- Просмотр и фильтрация записей учета времени
+- Управление сотрудниками
+- Управление проектами
+- Аутентификация пользователей
+- Фронтенд-запросы к API через Axios
 
-## Tech Stack
+## Стек технологий
 
-- **React 18** - UI library
-- **TypeScript** - Type safety
-- **Vite** - Build tool and dev server
-- **React Router** - Navigation
-- **Axios** - HTTP client
-- **CSS** - Styling
+- React 18
+- JavaScript / JSX
+- Vite
+- Axios
+- CSS
 
-## Getting Started
+## Установка и запуск
 
-### Prerequisites
+### Требования
 
-- Node.js 16+ and npm/yarn
+- Node.js 16+ 
+- npm или yarn
 
-### Installation
+### Команды
 
 ```bash
-# Install dependencies
+cd Frontend
 npm install
-
-# Start development server
 npm run dev
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
 ```
 
-The app will open automatically at `http://localhost:3000`.
+По умолчанию приложение запускается на `http://localhost:3000`.
 
-## Project Structure
+## Настройка API
+
+По умолчанию фронтенд подключается к `http://localhost:8000/api`.
+Если нужно изменить адрес, настройте прокси или `VITE` переменную окружения в `vite.config.js`.
+
+## Структура проекта
 
 ```
-src/
-├── pages/           # Page components (Dashboard, Employees, etc.)
-├── services/        # API services
-├── types/           # TypeScript types
-├── App.tsx          # Main app component
-├── main.tsx         # Entry point
-└── index.css        # Global styles
+Frontend/
+├── src/
+│   ├── modules/         # Бизнес-компоненты (Employees, Projects, TimeSheet)
+│   ├── shared/
+│   │   ├── context/     # Контекст авторизации
+│   │   ├── services/    # API-клиент
+│   │   └── types/       # Типы данных
+│   ├── App.jsx
+│   ├── main.jsx
+│   └── index.css
+├── package.json
+└── vite.config.js
 ```
 
-## API Integration
+## Рекомендуемый запуск
 
-The app is configured to connect to a backend API. Set the API base URL using the `REACT_APP_API_URL` environment variable:
+1. Запустите backend на `http://localhost:8000`
+2. Запустите frontend командой `npm run dev`
+3. Откройте приложение в браузере по адресу `http://localhost:5173`
 
-```bash
-export REACT_APP_API_URL=http://your-api.com/api
-```
+## Полезные файлы
 
-## Component Overview
-
-- **Dashboard** - Statistics and recent activity overview
-- **Employees** - Employee list with CRUD operations
-- **Departments** - Department management
-- **Attendance** - Daily attendance tracking and statistics
-- **Leave** - Leave request management
-
-## Development
-
-Add new pages in `src/pages/` and new types in `src/types/index.ts`.
-
-API calls are centralized in `src/services/api.ts`.
-
-## License
-
-MIT
+- `src/shared/services/api.ts` — реализация HTTP-клиента и API методов
+- `src/modules/timesheet/TimeSheet.jsx` — основная логика учета времени
+- `src/modules/employees/Employees.jsx` — управление сотрудниками

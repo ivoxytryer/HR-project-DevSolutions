@@ -1,22 +1,56 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { employeeAPI } from '../../shared/services/api'
+
+const DEPARTMENTS = {
+  1: { name: 'IT', type: 'основное' },
+  2: { name: 'HR', type: 'основное' },
+  3: { name: 'Finance', type: 'основное' },
+  4: { name: 'IT', type: 'удаленное' },
+  5: { name: 'HR', type: 'удаленное' },
+  6: { name: 'Sales', type: 'удаленное' }
+}
+
+const getDepartmentDisplay = (deptId) => {
+  const dept = DEPARTMENTS[deptId]
+  return dept ? `${dept.name} (${dept.type})` : `Отдел ${deptId}`
+}
 
 export default function Employees({ user, canEdit }) {
-  const [employees, setEmployees] = useState([
-    { id: 1, name: 'Иван Петров', position: 'Разработчик', dept: 'IT', email: 'ivan@example.com' },
-    { id: 2, name: 'Мария Сидорова', position: 'HR менеджер', dept: 'HR', email: 'maria@example.com' },
-  ])
-  const [name, setName] = useState('')
-  const [position, setPosition] = useState('')
-  const [dept, setDept] = useState('IT')
+  const [employees, setEmployees] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
+  const [deptId, setDeptId] = useState(1)
+  const [position, setPosition] = useState('employee')
   const [selectedRows, setSelectedRows] = useState(new Set())
   const [searchQuery, setSearchQuery] = useState('')
   const [editingEmployee, setEditingEmployee] = useState(null)
   const [showModal, setShowModal] = useState(false)
 
+  useEffect(() => {
+    fetchEmployees()
+  }, [])
+
+  const fetchEmployees = async () => {
+    try {
+      setLoading(true)
+      const response = await employeeAPI.getAll()
+      setEmployees(response.data || [])
+      setError(null)
+    } catch (err) {
+      setError('Ошибка при загрузке сотрудников')
+      setEmployees([])
+      console.error('Error fetching employees:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const filteredEmployees = employees.filter(emp =>
-    emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    emp.position.toLowerCase().includes(searchQuery.toLowerCase())
+    (emp.first_name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+    (emp.last_name?.toLowerCase() || '').includes(searchQuery.toLowerCase())
   )
 
   const toggleRowSelection = (id) => {
@@ -37,33 +71,50 @@ export default function Employees({ user, canEdit }) {
     }
   }
 
-  const addEmployee = () => {
-    if (!name || !position || !email) {
-      alert('Заполните ФИО, Должность и Email')
+  const addEmployee = async () => {
+    if (!firstName || !lastName || !email) {
+      alert('Заполните имя, фамилию и email')
       return
     }
-    if (!email.includes('@')) {
-      alert('Введите корректный email')
-      return
+    try {
+      await employeeAPI.create({ 
+        first_name: firstName, 
+        last_name: lastName, 
+        email: email,
+        department_id: deptId,
+        position: position
+      })
+      setFirstName('')
+      setLastName('')
+      setEmail('')
+      setDeptId(1)
+      setPosition('employee')
+      alert('Сотрудник добавлен')
+      fetchEmployees()
+    } catch (err) {
+      alert('Ошибка при добавлении сотрудника')
+      console.error('Error adding employee:', err)
     }
-    setEmployees([...employees, { id: Date.now(), name, position, dept, email }])
-    setName('')
-    setPosition('')
-    setDept('IT')
-    setEmail('')
-    alert('Сотрудник добавлен')
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (selectedRows.size === 0) {
       alert('Выберите сотрудников для удаления')
       return
     }
     const confirmed = confirm(`Вы уверены? Будет удалено ${selectedRows.size} сотрудник(ов)`)
     if (confirmed) {
-      setEmployees(employees.filter(e => !selectedRows.has(e.id)))
-      setSelectedRows(new Set())
-      alert('Сотрудники удалены')
+      try {
+        for (const id of selectedRows) {
+          await employeeAPI.delete(String(id))
+        }
+        setSelectedRows(new Set())
+        alert('Сотрудники удалены')
+        fetchEmployees()
+      } catch (err) {
+        alert('Ошибка при удалении сотрудников')
+        console.error('Error deleting employees:', err)
+      }
     }
   }
 
@@ -74,90 +125,148 @@ export default function Employees({ user, canEdit }) {
     }
     const employeeId = Array.from(selectedRows)[0]
     const employee = employees.find(e => e.id === employeeId)
-    setEditingEmployee({ ...employee })
+    setEditingEmployee({ 
+      ...employee,
+      department_id: employee.department_id || 1
+    })
     setShowModal(true)
   }
 
-  const handleSaveEdit = () => {
-    if (!editingEmployee.name || !editingEmployee.position || !editingEmployee.email) {
-      alert('Заполните ФИО, Должность и Email')
+  const handleSaveEdit = async () => {
+    if (!editingEmployee.first_name || !editingEmployee.last_name || !editingEmployee.email) {
+      alert('Заполните имя, фамилию и email')
       return
     }
-    if (!editingEmployee.email.includes('@')) {
-      alert('Введите корректный email')
-      return
+    try {
+      await employeeAPI.update(String(editingEmployee.id), { 
+        first_name: editingEmployee.first_name, 
+        last_name: editingEmployee.last_name, 
+        email: editingEmployee.email,
+        department_id: editingEmployee.department_id,
+        position: editingEmployee.position
+      })
+      setShowModal(false)
+      setEditingEmployee(null)
+      setSelectedRows(new Set())
+      alert('Сотрудник обновлен')
+      fetchEmployees()
+    } catch (err) {
+      alert('Ошибка при обновлении сотрудника')
+      console.error(err)
     }
-    setEmployees(employees.map(e => e.id === editingEmployee.id ? editingEmployee : e))
-    setShowModal(false)
-    setEditingEmployee(null)
-    setSelectedRows(new Set())
-    alert('Сотрудник обновлен')
   }
 
+  if (loading) return <div className="loading">Загрузка сотрудников...</div>
+
   return (
-    <div className="page">
+    <div className="employees-container">
       <h2>Сотрудники</h2>
+      {error && <div className="error-message">{error}</div>}
+
       {canEdit && (
-        <div className="add-form">
-          <input type="text" placeholder="ФИО" value={name} onChange={(e) => setName(e.target.value)} />
-          <input type="text" placeholder="Должность" value={position} onChange={(e) => setPosition(e.target.value)} />
-          <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <select value={dept} onChange={(e) => setDept(e.target.value)}>
-            <option>IT</option>
-            <option>HR</option>
-            <option>Продажи</option>
-            <option>Финансы</option>
-            <option>Маркетинг</option>
-          </select>
-          <button onClick={addEmployee}>Добавить</button>
+        <div className="add-section">
+          <div className="form-group">
+            <input
+              type="text"
+              placeholder="Имя"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+            />
+          </div>
+          <div className="form-group">
+            <input
+              type="text"
+              placeholder="Фамилия"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+            />
+          </div>
+          <div className="form-group">
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          <div className="form-group">
+            <select value={deptId} onChange={(e) => setDeptId(parseInt(e.target.value))}>
+              {Object.entries(DEPARTMENTS).map(([id, dept]) => (
+                <option key={id} value={id}>{dept.name} ({dept.type})</option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <select value={position} onChange={(e) => setPosition(e.target.value)}>
+              <option value="employee">Сотрудник</option>
+              <option value="project_manager">Менеджер проектов</option>
+              <option value="hr_manager">Менеджер сотрудников</option>
+            </select>
+          </div>
+          <button onClick={addEmployee}>Добавить сотрудника</button>
         </div>
       )}
 
-      <div className="search-bar">
-        <input 
-          type="text" 
-          placeholder="Поиск по ФИО или должности..." 
-          value={searchQuery} 
+      <div className="search-section">
+        <input
+          type="text"
+          placeholder="Поиск по имени или фамилии..."
+          value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
       </div>
 
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th style={{ width: '30px' }}>
-              <input type="checkbox" onChange={selectAll} checked={selectedRows.size === filteredEmployees.length && filteredEmployees.length > 0} />
-            </th>
-            <th>ФИО</th>
-            <th>Должность</th>
-            <th>Отдел</th>
-            <th>Email</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredEmployees.map(emp => (
-            <tr key={emp.id} className={selectedRows.has(emp.id) ? 'selected' : ''}>
-              <td>
-                <input type="checkbox" checked={selectedRows.has(emp.id)} onChange={() => toggleRowSelection(emp.id)} />
-              </td>
-              <td>{emp.name}</td>
-              <td>{emp.position}</td>
-              <td>{emp.dept}</td>
-              <td>{emp.email}</td>
+      {filteredEmployees.length === 0 ? (
+        <p>Сотрудников не найдено</p>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              {canEdit && (
+                <th>
+                  <input type="checkbox" onChange={selectAll} checked={selectedRows.size === filteredEmployees.length && filteredEmployees.length > 0} />
+                </th>
+              )}
+              <th>Имя</th>
+              <th>Фамилия</th>
+              <th>Email</th>
+              <th>Подразделение</th>
+              <th>Должность</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {filteredEmployees.map((emp) => (
+              <tr key={emp.id}>
+                {canEdit && (
+                  <td>
+                    <input type="checkbox" checked={selectedRows.has(emp.id)} onChange={() => toggleRowSelection(emp.id)} />
+                  </td>
+                )}
+                <td>{emp.first_name}</td>
+                <td>{emp.last_name}</td>
+                <td>{emp.email}</td>
+                <td>{getDepartmentDisplay(emp.department_id)}</td>
+                <td>
+                  {emp.position === 'employee' ? 'Сотрудник' : 
+                   emp.position === 'project_manager' ? 'Менеджер проектов' : 
+                   emp.position === 'hr_manager' ? 'Менеджер сотрудников' : emp.position}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
 
-      <div className="table-footer">
-        <p>Всего сотрудников: {filteredEmployees.length}</p>
-        {canEdit && (
-          <div className="action-buttons">
-            <button className="btn-action btn-delete" onClick={handleDelete}>Удалить</button>
-            <button className="btn-action btn-edit" onClick={handleEdit}>Редактировать</button>
-          </div>
-        )}
-      </div>
+      {canEdit && selectedRows.size > 0 && (
+        <div className="action-buttons">
+          <button onClick={handleEdit} className="btn-edit btn-action">
+            Редактировать
+          </button>
+          <button onClick={handleDelete} className="btn-delete btn-action">
+            Удалить выбранные ({selectedRows.size})
+          </button>
+        </div>
+      )}
 
       {showModal && editingEmployee && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
@@ -168,25 +277,31 @@ export default function Employees({ user, canEdit }) {
             </div>
             <div className="modal-body">
               <div className="form-group">
-                <label>ФИО</label>
-                <input type="text" value={editingEmployee.name} onChange={(e) => setEditingEmployee({ ...editingEmployee, name: e.target.value })} />
+                <label>Имя</label>
+                <input type="text" value={editingEmployee.first_name} onChange={(e) => setEditingEmployee({ ...editingEmployee, first_name: e.target.value })} />
               </div>
               <div className="form-group">
-                <label>Должность</label>
-                <input type="text" value={editingEmployee.position} onChange={(e) => setEditingEmployee({ ...editingEmployee, position: e.target.value })} />
+                <label>Фамилия</label>
+                <input type="text" value={editingEmployee.last_name} onChange={(e) => setEditingEmployee({ ...editingEmployee, last_name: e.target.value })} />
               </div>
               <div className="form-group">
                 <label>Email</label>
                 <input type="email" value={editingEmployee.email} onChange={(e) => setEditingEmployee({ ...editingEmployee, email: e.target.value })} />
               </div>
               <div className="form-group">
-                <label>Отдел</label>
-                <select value={editingEmployee.dept} onChange={(e) => setEditingEmployee({ ...editingEmployee, dept: e.target.value })}>
-                  <option>IT</option>
-                  <option>HR</option>
-                  <option>Продажи</option>
-                  <option>Финансы</option>
-                  <option>Маркетинг</option>
+                <label>Подразделение</label>
+                <select value={editingEmployee.department_id || 1} onChange={(e) => setEditingEmployee({ ...editingEmployee, department_id: parseInt(e.target.value) })}>
+                  {Object.entries(DEPARTMENTS).map(([id, dept]) => (
+                    <option key={id} value={id}>{dept.name} ({dept.type})</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Должность</label>
+                <select value={editingEmployee.position || 'employee'} onChange={(e) => setEditingEmployee({ ...editingEmployee, position: e.target.value })}>
+                  <option value="employee">Сотрудник</option>
+                  <option value="project_manager">Менеджер проектов</option>
+                  <option value="hr_manager">Менеджер сотрудников</option>
                 </select>
               </div>
             </div>

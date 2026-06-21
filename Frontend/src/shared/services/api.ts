@@ -1,36 +1,59 @@
 import axios from 'axios'
-import { Employee, Department, Project, Attendance } from '../types'
+import { Employee, Department, Project, Attendance, User, LoginRequest, LoginResponse } from '../types'
 
 const API_BASE_URL = 'http://localhost:8000/api'
 
+// Create axios instance with interceptor for token
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+})
+
+// Add token to requests if available
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('authToken')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+export const authAPI = {
+  login: (data: LoginRequest) => 
+    axios.post<LoginResponse>(`${API_BASE_URL}/auth/login`, data),
+  register: (data: LoginRequest) => 
+    axios.post<LoginResponse>(`${API_BASE_URL}/auth/register`, data),
+  getCurrentUser: () => 
+    apiClient.get<User>(`/auth/me`),
+}
+
 export const employeeAPI = {
-  getAll: () => axios.get<Employee[]>(`${API_BASE_URL}/employees`),
-  getById: (id: string) => axios.get<Employee>(`${API_BASE_URL}/employees/${id}`),
-  create: (data: Partial<Employee>) => axios.post<Employee>(`${API_BASE_URL}/employees`, data),
-  update: (id: string, data: Partial<Employee>) => axios.put<Employee>(`${API_BASE_URL}/employees/${id}`, data),
-  delete: (id: string) => axios.delete(`${API_BASE_URL}/employees/${id}`),
+  getAll: () => apiClient.get<Employee[]>(`/employees`),
+  getById: (id: string) => apiClient.get<Employee>(`/employees/${id}`),
+  create: (data: Partial<Employee>) => apiClient.post<Employee>(`/employees`, data),
+  update: (id: string, data: Partial<Employee>) => apiClient.put<Employee>(`/employees/${id}`, data),
+  delete: (id: string) => apiClient.delete(`/employees/${id}`),
 }
 
 export const departmentAPI = {
-  getAll: () => axios.get<Department[]>(`${API_BASE_URL}/departments`),
-  getById: (id: string) => axios.get<Department>(`${API_BASE_URL}/departments/${id}`),
-  create: (data: Partial<Department>) => axios.post<Department>(`${API_BASE_URL}/departments`, data),
-  update: (id: string, data: Partial<Department>) => axios.put<Department>(`${API_BASE_URL}/departments/${id}`, data),
-  delete: (id: string) => axios.delete(`${API_BASE_URL}/departments/${id}`),
+  getAll: () => apiClient.get<Department[]>(`/departments`),
+  getById: (id: string) => apiClient.get<Department>(`/departments/${id}`),
+  create: (data: Partial<Department>) => apiClient.post<Department>(`/departments`, data),
+  update: (id: string, data: Partial<Department>) => apiClient.put<Department>(`/departments/${id}`, data),
+  delete: (id: string) => apiClient.delete(`/departments/${id}`),
 }
 
 export const projectAPI = {
-  getAll: () => axios.get<Project[]>(`${API_BASE_URL}/projects`),
-  getById: (id: string) => axios.get<Project>(`${API_BASE_URL}/projects/${id}`),
-  create: (data: Partial<Project>) => axios.post<Project>(`${API_BASE_URL}/projects`, data),
-  update: (id: string, data: Partial<Project>) => axios.put<Project>(`${API_BASE_URL}/projects/${id}`, data),
-  delete: (id: string) => axios.delete(`${API_BASE_URL}/projects/${id}`),
+  getAll: () => apiClient.get<Project[]>(`/projects`),
+  getById: (id: string) => apiClient.get<Project>(`/projects/${id}`),
+  create: (data: Partial<Project>) => apiClient.post<Project>(`/projects`, data),
+  update: (id: string, data: Partial<Project>) => apiClient.put<Project>(`/projects/${id}`, data),
+  delete: (id: string) => apiClient.delete(`/projects/${id}`),
 }
 
 export const attendanceAPI = {
-  getAll: () => axios.get<Attendance[]>(`${API_BASE_URL}/attendance`),
-  getById: (id: string) => axios.get<Attendance>(`${API_BASE_URL}/attendance/${id}`),
-  create: (data: Partial<Attendance>) => axios.post<Attendance>(`${API_BASE_URL}/attendance`, data),
-  update: (id: string, data: Partial<Attendance>) => axios.put<Attendance>(`${API_BASE_URL}/attendance/${id}`, data),
-  delete: (id: string) => axios.delete(`${API_BASE_URL}/attendance/${id}`),
+  getAll: () => apiClient.get<Attendance[]>(`/attendance`),
+  getById: (id: string) => apiClient.get<Attendance>(`/attendance/${id}`),
+  create: (data: Partial<Attendance>) => apiClient.post<Attendance>(`/attendance`, data),
+  update: (id: string, data: Partial<Attendance>) => apiClient.put<Attendance>(`/attendance/${id}`, data),
+  delete: (id: string) => apiClient.delete(`/attendance/${id}`),
 }

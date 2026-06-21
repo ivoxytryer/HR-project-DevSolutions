@@ -1,4 +1,5 @@
 ﻿import { useState } from 'react'
+import { useAuth } from './shared/context/AuthContext'
 import Login from './modules/auth/Login'
 import TimeSheet from './modules/timesheet/TimeSheet'
 import Projects from './modules/projects/Projects'
@@ -9,41 +10,43 @@ import image2 from './shared/assets/image2.png'
 import image3 from './shared/assets/image3.png'
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [user, setUser] = useState(null)
+  const { user, isLoading, logout } = useAuth()
   const [page, setPage] = useState('timesheet')
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
   const getRoleLabel = (role) => {
     const roleLabels = {
-      'user': 'Обычный пользователь',
-      'project_manager': 'Менеджер проектов',
-      'hr_manager': 'HR менеджер'
+      'employee': 'Сотрудник',
+      'manager': 'Менеджер проектов',
+      'hr_manager': 'Менеджер сотрудников',
+      'admin': 'Администратор'
     }
     return roleLabels[role] || 'Пользователь'
   }
 
-  const canEditPage = (pageName, userRole) => {
+  const canEdit = (pageName) => {
+    if (!user) return false
     const editPermissions = {
-      'timesheet': ['user', 'project_manager', 'hr_manager'],
-      'projects': ['project_manager'],
-      'employees': ['hr_manager']
+      'timesheet': ['employee', 'manager', 'hr_manager', 'admin'],
+      'projects': ['manager', 'admin'],
+      'employees': ['admin', 'hr_manager']
     }
-    return editPermissions[pageName]?.includes(userRole) ?? false
+    return editPermissions[pageName]?.includes(user.role) ?? false
   }
 
-  if (!isLoggedIn) {
-    return <Login onLogin={(data) => {
-      setUser(data)
-      setIsLoggedIn(true)
-    }} />
+  if (isLoading) {
+    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>Загрузка...</div>
+  }
+
+  if (!user) {
+    return <Login />
   }
 
   return (
     <div className="app-container">
       <header className="app-header">
         <button className="btn-hamburger" onClick={() => setSidebarOpen(!sidebarOpen)}>☰</button>
-        <h1>DevSolutions</h1>
+        <h1>DevSolutions HR</h1>
       </header>
       
       <div className="app-wrapper">
@@ -55,16 +58,20 @@ export default function App() {
           </div>
           <ul className="nav-menu">
             <li><button className={page === 'timesheet' ? 'active' : ''} onClick={() => setPage('timesheet')}><img src={image1} alt="Учет времени" /> Учет времени</button></li>
-            <li><button className={page === 'projects' ? 'active' : ''} onClick={() => setPage('projects')}><img src={image2} alt="Проекты" /> Проекты</button></li>
-            <li><button className={page === 'employees' ? 'active' : ''} onClick={() => setPage('employees')}><img src={image3} alt="Сотрудники" /> Сотрудники</button></li>
+            {(user?.role === 'manager' || user?.role === 'admin') && (
+              <li><button className={page === 'projects' ? 'active' : ''} onClick={() => setPage('projects')}><img src={image2} alt="Проекты" /> Проекты</button></li>
+            )}
+            {(user?.role === 'admin' || user?.role === 'hr_manager') && (
+              <li><button className={page === 'employees' ? 'active' : ''} onClick={() => setPage('employees')}><img src={image3} alt="Сотрудники" /> Сотрудники</button></li>
+            )}
           </ul>
-          <button className="btn-logout" onClick={() => setIsLoggedIn(false)}>Выход</button>
+          <button className="btn-logout" onClick={logout}>Выход</button>
         </nav>
 
         <main className="main-content">
           {page === 'timesheet' && <TimeSheet user={user} />}
-          {page === 'projects' && <Projects user={user} canEdit={canEditPage('projects', user?.role)} />}
-          {page === 'employees' && <Employees user={user} canEdit={canEditPage('employees', user?.role)} />}
+          {page === 'projects' && <Projects user={user} canEdit={canEdit('projects')} />}
+          {page === 'employees' && <Employees user={user} canEdit={canEdit('employees')} />}
         </main>
       </div>
     </div>

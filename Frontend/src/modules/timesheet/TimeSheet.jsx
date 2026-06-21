@@ -1,115 +1,108 @@
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { attendanceAPI, employeeAPI, projectAPI } from '../../shared/services/api'
 import './TimeSheet.css'
 
 export default function TimeSheet({ user }) {
-  const [tasks, setTasks] = useState([
-    { id: 1, project: 'Сайт', activity: 'Frontend', type: 'Разработка', time: '3 часа', description: 'Разработка интерфейса учёта рабочего времени', date: '01.06.2026', status: 'Черновик' },
-    { id: 2, project: 'Сайт', activity: 'Backend', type: 'Разработка', time: '3 часа', description: 'Разработка интерфейса учёта рабочего времени', date: '02.06.2026', status: 'Утверждено' },
-    { id: 3, project: 'Сайт', activity: 'Testing', type: 'Разработка', time: '3 часа', description: 'Разработка интерфейса учёта рабочего времени', date: '03.06.2026', status: 'Отправлено' },
-    { id: 4, project: 'Мобильное приложение', activity: 'Design', type: 'Дизайн', time: '2 часа', description: 'Дизайн интерфейса приложения', date: '05.06.2026', status: 'Утверждено' },
-    { id: 5, project: 'Система отчетности', activity: 'Database', type: 'Разработка', time: '4 часа', description: 'Проектирование базы данных', date: '06.06.2026', status: 'Черновик' },
-    { id: 6, project: 'Сайт', activity: 'API', type: 'Разработка', time: '3 часа', description: 'Разработка REST API', date: '08.06.2026', status: 'Утверждено' },
-    { id: 7, project: 'Мобильное приложение', activity: 'Frontend', type: 'Разработка', time: '3 часа', description: 'Разработка мобильного интерфейса', date: '09.06.2026', status: 'Отправлено' },
-  ])
+  const [tasks, setTasks] = useState([])
+  const [employees, setEmployees] = useState([])
+  const [projects, setProjects] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   const [selectedRows, setSelectedRows] = useState(new Set())
-  const [employee, setEmployee] = useState('Никита Аминов')
-  const [project, setProject] = useState('Все')
+  const [selectedEmployee, setSelectedEmployee] = useState(null)
+  const [selectedProject, setSelectedProject] = useState('Все')
   const [status, setStatus] = useState('Все')
-  const [periodType, setPeriodType] = useState('Месяц')
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 5, 1))
+  const [startDate, setStartDate] = useState(new Date(2026, 5, 1).toISOString().slice(0, 10))
+  const [endDate, setEndDate] = useState(new Date(2026, 5, 30).toISOString().slice(0, 10))
   const [editingTask, setEditingTask] = useState(null)
   const [showModal, setShowModal] = useState(false)
+  const [hours, setHours] = useState('')
+  const [taskDate, setTaskDate] = useState(new Date().toISOString().slice(0, 10))
+  const [description, setDescription] = useState('')
 
-  // Helper functions for date operations
   const parseDate = (dateStr) => {
-    const [day, month, year] = dateStr.split('.').map(Number)
-    return new Date(year, month - 1, day)
+    if (!dateStr) return new Date(NaN)
+
+    if (dateStr.includes('.')) {
+      const parts = dateStr.split('.').map(Number)
+      if (parts.length !== 3) return new Date(NaN)
+      const [day, month, year] = parts
+      return new Date(year, month - 1, day)
+    }
+
+    return new Date(dateStr)
   }
 
   const formatDate = (date) => {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return ''
     const day = String(date.getDate()).padStart(2, '0')
     const month = String(date.getMonth() + 1).padStart(2, '0')
     const year = date.getFullYear()
     return `${day}.${month}.${year}`
   }
 
-  const getDateRange = (periodType, baseDate) => {
-    const date = new Date(baseDate)
-    let start, end
+  const formatDateForBackend = (dateStr) => {
+    const date = parseDate(dateStr)
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return ''
+    return date.toISOString().slice(0, 10)
+  }
 
-    switch (periodType) {
-      case 'День':
-        start = new Date(date)
-        end = new Date(date)
-        break
-      case 'Неделя':
-        start = new Date(date)
-        const day = start.getDay()
-        const diff = start.getDate() - day + (day === 0 ? -6 : 1)
-        start.setDate(diff)
-        end = new Date(start)
-        end.setDate(end.getDate() + 6)
-        break
-      case 'Месяц':
-        start = new Date(date.getFullYear(), date.getMonth(), 1)
-        end = new Date(date.getFullYear(), date.getMonth() + 1, 0)
-        break
-      default:
-        start = new Date(date)
-        end = new Date(date)
+  const formatDisplayDate = (dateStr) => {
+    const date = parseDate(dateStr)
+    return formatDate(date) || dateStr
+  }
+
+  useEffect(() => {
+    fetchAllData()
+  }, [])
+
+  const fetchAllData = async () => {
+    try {
+      setLoading(true)
+      const [tasksRes, employeesRes, projectsRes] = await Promise.all([
+        attendanceAPI.getAll().catch(() => ({ data: [] })),
+        employeeAPI.getAll().catch(() => ({ data: [] })),
+        projectAPI.getAll().catch(() => ({ data: [] }))
+      ])
+      
+      setTasks(tasksRes.data || [])
+      const emps = employeesRes.data || []
+      setEmployees(emps)
+      setProjects(projectsRes.data || [])
+      
+      setSelectedEmployee(null)
+      setError(null)
+    } catch (err) {
+      setError('Ошибка при загрузке данных')
+      console.error('Error fetching data:', err)
+    } finally {
+      setLoading(false)
     }
-
-    return { start, end }
   }
 
-  const { start: startDate, end: endDate } = getDateRange(periodType, currentDate)
-
-  const handlePeriodChange = (newPeriodType) => {
-    setPeriodType(newPeriodType)
-  }
-
-  const handlePrevious = () => {
-    const newDate = new Date(currentDate)
-    switch (periodType) {
-      case 'День':
-        newDate.setDate(newDate.getDate() - 1)
-        break
-      case 'Неделя':
-        newDate.setDate(newDate.getDate() - 7)
-        break
-      case 'Месяц':
-        newDate.setMonth(newDate.getMonth() - 1)
-        break
+  // When employees load, if current user is employee, auto-select their record
+  useEffect(() => {
+    if (!user) return
+    if (user.role === 'employee' && employees.length > 0) {
+      const mine = employees.find(e => e.user_id === user.id)
+      if (mine) setSelectedEmployee(mine.id)
     }
-    setCurrentDate(newDate)
-  }
+  }, [user, employees])
 
-  const handleNext = () => {
-    const newDate = new Date(currentDate)
-    switch (periodType) {
-      case 'День':
-        newDate.setDate(newDate.getDate() + 1)
-        break
-      case 'Неделя':
-        newDate.setDate(newDate.getDate() + 7)
-        break
-      case 'Месяц':
-        newDate.setMonth(newDate.getMonth() + 1)
-        break
-    }
-    setCurrentDate(newDate)
-  }
+  const start = parseDate(startDate)
+  const end = parseDate(endDate)
 
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
       const taskDate = parseDate(task.date)
       const statusMatch = status === 'Все' || task.status === status
-      const projectMatch = project === 'Все' || task.project === project
-      const dateMatch = taskDate >= startDate && taskDate <= endDate
-      return statusMatch && projectMatch && dateMatch
+      const projectMatch = selectedProject === 'Все' || task.project_id === parseInt(selectedProject)
+      const employeeMatch = !selectedEmployee || task.employee_id === selectedEmployee
+      const dateMatch = taskDate >= start && taskDate <= end
+      return statusMatch && projectMatch && employeeMatch && dateMatch
     })
-  }, [tasks, status, project, startDate, endDate])
+  }, [tasks, status, selectedProject, selectedEmployee, start, end])
 
   const toggleRowSelection = (id) => {
     const newSelected = new Set(selectedRows)
@@ -129,117 +122,145 @@ export default function TimeSheet({ user }) {
     }
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (selectedRows.size === 0) {
-      alert('Выберите задачи для удаления')
+      alert('Выберите записи для удаления')
       return
     }
-    const confirmed = confirm(`Вы уверены? Будет удалено ${selectedRows.size} записи(ей)`)
+    const confirmed = confirm(`Вы уверены? Будет удалено ${selectedRows.size} запись(ей)`)
     if (confirmed) {
-      setTasks(tasks.filter(t => !selectedRows.has(t.id)))
-      setSelectedRows(new Set())
-      alert('Задачи удалены')
+      try {
+        for (const id of selectedRows) {
+          await attendanceAPI.delete(String(id))
+        }
+        setSelectedRows(new Set())
+        alert('Записи удалены')
+        fetchAllData()
+      } catch (err) {
+        alert('Ошибка при удалении')
+        console.error(err)
+      }
     }
-  }
-
-  const handleEdit = () => {
-    if (selectedRows.size !== 1) {
-      alert('Выберите одну задачу для редактирования')
-      return
-    }
-    const taskId = Array.from(selectedRows)[0]
-    const task = tasks.find(t => t.id === taskId)
-    setEditingTask({ ...task })
-    setShowModal(true)
   }
 
   const handleNew = () => {
+    const isoDate = startDate
     setEditingTask({
       id: null,
-      project: '',
-      activity: '',
-      type: '',
-      time: '',
-      description: '',
-      date: formatDate(new Date()),
-      status: 'Черновик'
+      employee_id: selectedEmployee || employees[0]?.id || 1,
+      project_id: selectedProject !== 'Все' ? parseInt(selectedProject) : (projects[0]?.id || 1),
+      hours: '',
+      date: isoDate,
+      status: 'Черновик',
+      description: ''
     })
+    setHours('')
+    setTaskDate(isoDate)
+    setDescription('')
     setShowModal(true)
   }
 
-  const handleSaveEdit = () => {
-    if (!editingTask.project || !editingTask.activity) {
-      alert('Заполните Проект и Деятельность')
-      return
-    }
-    if (editingTask.id) {
-      setTasks(tasks.map(t => t.id === editingTask.id ? editingTask : t))
-      alert('Задача обновлена')
-    } else {
-      const newTask = { ...editingTask, id: Date.now() }
-      setTasks([newTask, ...tasks])
-      alert('Задача добавлена')
-    }
-    setShowModal(false)
-    setEditingTask(null)
-    setSelectedRows(new Set())
+  const handleEdit = (task) => {
+    const isoDate = formatDateForBackend(task.date) || new Date().toISOString().slice(0, 10)
+    setEditingTask(task)
+    setHours(String(task.hours || ''))
+    setTaskDate(isoDate)
+    setDescription(task.description || '')
+    setShowModal(true)
   }
 
-  const handleApprove = () => {
-    if (selectedRows.size === 0) {
-      alert('Выберите задачи для отправки')
+  const handleSaveEdit = async () => {
+    if (!editingTask.employee_id || !editingTask.project_id || !hours) {
+      alert('Заполните все поля')
       return
     }
-    setTasks(tasks.map(t => 
-      selectedRows.has(t.id) ? { ...t, status: 'Отправлено' } : t
-    ))
-    setSelectedRows(new Set())
-    alert('Выбранные задачи отправлены на утверждение')
+
+    try {
+      const formattedDate = formatDateForBackend(taskDate)
+      if (!formattedDate) {
+        alert('Укажите корректную дату в формате YYYY-MM-DD или DD.MM.YYYY')
+        return
+      }
+
+      const data = {
+        employee_id: editingTask.employee_id,
+        project_id: editingTask.project_id,
+        hours: parseFloat(hours),
+        date: formattedDate,
+        description
+      }
+
+      if (editingTask.id) {
+        await attendanceAPI.update(String(editingTask.id), data)
+        alert('Запись обновлена')
+      } else {
+        await attendanceAPI.create(data)
+        alert('Запись добавлена')
+      }
+      setShowModal(false)
+      setEditingTask(null)
+      setSelectedRows(new Set())
+      fetchAllData()
+    } catch (err) {
+      alert('Ошибка при сохранении')
+      console.error(err)
+    }
   }
 
-  const totalTime = filteredTasks.reduce((sum, task) => {
-    const hours = parseInt(task.time) || 0
-    return sum + hours
-  }, 0)
+  const getEmployeeName = (empId) => {
+    const emp = employees.find(e => e.id === empId)
+    return emp ? `${emp.first_name} ${emp.last_name}` : `ID: ${empId}`
+  }
+
+  const getProjectName = (projId) => {
+    const proj = projects.find(p => p.id === projId)
+    return proj ? proj.name : `ID: ${projId}`
+  }
+
+  const totalHours = filteredTasks.reduce((sum, task) => sum + (parseFloat(task.hours) || 0), 0)
+
+  if (loading) return <div className="loading">Загрузка данных...</div>
 
   return (
     <div className="timesheet-container">
-      <div className="timesheet-header">
-        <div className="header-title">
-          <svg width="48" height="48" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-            {/* Clipboard */}
-            <rect x="15" y="20" width="70" height="75" rx="3" fill="none" stroke="#667eea" strokeWidth="3"/>
-            <rect x="35" y="10" width="30" height="15" rx="2" fill="#667eea"/>
-            {/* Time entries bars */}
-            <rect x="25" y="35" width="8" height="20" fill="#667eea"/>
-            <rect x="37" y="30" width="8" height="25" fill="#667eea"/>
-            <rect x="49" y="38" width="8" height="17" fill="#667eea"/>
-            <rect x="61" y="32" width="8" height="23" fill="#667eea"/>
-            {/* Checkmark */}
-            <circle cx="75" cy="65" r="8" fill="#4CAF50"/>
-            <path d="M72 65L74 67L78 63" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-          </svg>
-          <h2>Учет времени</h2>
-        </div>
-      </div>
+      <h2>Учет времени</h2>
+
+      {error && <div className="error-message">{error}</div>}
 
       <div className="filters-section">
         <div className="filter-group">
           <label>Сотрудник</label>
-          <select value={employee} onChange={(e) => setEmployee(e.target.value)}>
-            <option>Никита Аминов</option>
-            <option>Иван Петров</option>
-            <option>Мария Сидорова</option>
-          </select>
+          {user?.role === 'employee' ? (
+            <select value={selectedEmployee || ''} disabled>
+              {employees
+                .filter(emp => emp.user_id === user.id)
+                .map(emp => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.first_name} {emp.last_name}
+                  </option>
+                ))}
+            </select>
+          ) : (
+            <select value={selectedEmployee || ''} onChange={(e) => setSelectedEmployee(parseInt(e.target.value) || null)}>
+              <option value="">Все</option>
+              {employees.map(emp => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.first_name} {emp.last_name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         <div className="filter-group">
           <label>Проект</label>
-          <select value={project} onChange={(e) => setProject(e.target.value)}>
+          <select value={selectedProject} onChange={(e) => setSelectedProject(e.target.value)}>
             <option>Все</option>
-            <option>Сайт</option>
-            <option>Мобильное приложение</option>
-            <option>Система отчетности</option>
+            {projects.map(proj => (
+              <option key={proj.id} value={proj.id}>
+                {proj.name}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -253,119 +274,193 @@ export default function TimeSheet({ user }) {
           </select>
         </div>
 
-        <div className="period-controls">
-          <button className={periodType === 'День' ? 'active' : ''} onClick={() => handlePeriodChange('День')}>День</button>
-          <button className={periodType === 'Неделя' ? 'active' : ''} onClick={() => handlePeriodChange('Неделя')}>Неделя</button>
-          <button className={periodType === 'Месяц' ? 'active' : ''} onClick={() => handlePeriodChange('Месяц')}>Месяц</button>
-        </div>
-
         <div className="date-range">
-          <input type="text" value={formatDate(startDate)} readOnly />
-          <span>-</span>
-          <input type="text" value={formatDate(endDate)} readOnly />
-          <button className="btn-nav" onClick={handlePrevious}>◀</button>
-          <button className="btn-nav" onClick={handleNext}>▶</button>
+          <label>Дата начала:</label>
+          <div className="date-wrapper">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10h5v5H7z" opacity=".0"></path><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/></svg>
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          </div>
+
+          <label>Дата окончания:</label>
+          <div className="date-wrapper">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10h5v5H7z" opacity=".0"></path><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/></svg>
+            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          </div>
         </div>
 
-        <button className="btn-add" onClick={handleNew}>+</button>
+        <button className="btn-add" onClick={handleNew}>+ Добавить</button>
       </div>
 
-      <div className="table-wrapper">
-        <table className="timesheet-table">
-          <thead>
-            <tr>
-              <th style={{ width: '30px' }}>
-                <input type="checkbox" onChange={selectAll} checked={selectedRows.size === filteredTasks.length && filteredTasks.length > 0} />
-              </th>
-              <th>Проект</th>
-              <th>Деятельность</th>
-              <th>Тип задачи</th>
-              <th>Время</th>
-              <th>Описание</th>
-              <th>Дата</th>
-              <th>Статус</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredTasks.map(task => (
-              <tr key={task.id} className={selectedRows.has(task.id) ? 'selected' : ''}>
-                <td>
-                  <input type="checkbox" checked={selectedRows.has(task.id)} onChange={() => toggleRowSelection(task.id)} />
-                </td>
-                <td>{task.project}</td>
-                <td>{task.activity}</td>
-                <td>{task.type}</td>
-                <td>{task.time}</td>
-                <td className="description">{task.description}</td>
-                <td>{task.date}</td>
-                <td>
-                  <span className={`status-badge status-${task.status.toLowerCase().replace(/\s/g, '-')}`}>
-                    {task.status}
-                  </span>
-                </td>
+      {filteredTasks.length === 0 ? (
+        <p>Нет записей для выбранных критериев</p>
+      ) : (
+        <div className="table-wrapper">
+          <table className="timesheet-table">
+            <thead>
+              <tr>
+                <th>
+                  <input type="checkbox" onChange={selectAll} checked={selectedRows.size === filteredTasks.length && filteredTasks.length > 0} />
+                </th>
+                <th>Сотрудник</th>
+                <th>Проект</th>
+                <th>Часы</th>
+                <th>Описание</th>
+                <th>Дата</th>
+                <th>Статус</th>
+                <th>Действия</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="table-footer">
-        <p>Общее время: {totalTime}/40 ч.</p>
-        <div className="action-buttons">
-          <button className="btn-action btn-delete" onClick={handleDelete}>Удалить</button>
-          <button className="btn-action btn-edit" onClick={handleEdit}>Редактировать</button>
-          <button className="btn-action btn-approve" onClick={handleApprove}>Отправить на утверждение</button>
+            </thead>
+            <tbody>
+              {filteredTasks.map((task) => (
+                <tr key={task.id}>
+                  <td>
+                    <input type="checkbox" checked={selectedRows.has(task.id)} onChange={() => toggleRowSelection(task.id)} />
+                  </td>
+                  <td>{getEmployeeName(task.employee_id)}</td>
+                  <td>{getProjectName(task.project_id)}</td>
+                  <td>{task.hours}</td>
+                  <td>{task.description}</td>
+                  <td>{formatDisplayDate(task.date)}</td>
+                  <td>{task.status}</td>
+                  <td>
+                    <button className="btn-edit" onClick={() => handleEdit(task)}>✎</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="total-hours">Всего часов: {totalHours.toFixed(2)}</div>
         </div>
-      </div>
+      )}
 
-      {showModal && editingTask && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>{editingTask.id ? 'Редактировать задачу' : 'Создать задачу'}</h3>
-              <button className="btn-close" onClick={() => setShowModal(false)}>✕</button>
+      {selectedRows.size > 0 && (
+        <button onClick={handleDelete} className="delete-btn">
+          Удалить ({selectedRows.size})
+        </button>
+      )}
+
+      {showModal && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h3>{editingTask.id ? 'Редактировать' : 'Новая запись'}</h3>
+            
+            <div className="form-group">
+              <label>Сотрудник</label>
+              <select value={editingTask.employee_id || ''} onChange={(e) => setEditingTask({...editingTask, employee_id: parseInt(e.target.value)})}>
+                {employees.map(emp => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.first_name} {emp.last_name}
+                  </option>
+                ))}
+              </select>
             </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label>Проект</label>
-                <input type="text" value={editingTask.project} onChange={(e) => setEditingTask({ ...editingTask, project: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Деятельность</label>
-                <input type="text" value={editingTask.activity} onChange={(e) => setEditingTask({ ...editingTask, activity: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Тип задачи</label>
-                <input type="text" value={editingTask.type} onChange={(e) => setEditingTask({ ...editingTask, type: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Время</label>
-                <input type="text" value={editingTask.time} onChange={(e) => setEditingTask({ ...editingTask, time: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Описание</label>
-                <textarea value={editingTask.description} onChange={(e) => setEditingTask({ ...editingTask, description: e.target.value })} rows="4" />
-              </div>
-              <div className="form-group">
-                <label>Дата</label>
-                <input type="text" value={editingTask.date} onChange={(e) => setEditingTask({ ...editingTask, date: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Статус</label>
-                <select value={editingTask.status} onChange={(e) => setEditingTask({ ...editingTask, status: e.target.value })}>
-                  <option>Черновик</option>
-                  <option>Отправлено</option>
-                  <option>Утверждено</option>
-                </select>
-              </div>
+
+            <div className="form-group">
+              <label>Проект</label>
+              <select value={editingTask.project_id || ''} onChange={(e) => setEditingTask({...editingTask, project_id: parseInt(e.target.value)})}>
+                {projects.map(proj => (
+                  <option key={proj.id} value={proj.id}>
+                    {proj.name}
+                  </option>
+                ))}
+              </select>
             </div>
-            <div className="modal-footer">
-              <button className="btn-cancel" onClick={() => setShowModal(false)}>Отмена</button>
-              <button className="btn-save" onClick={handleSaveEdit}>Сохранить</button>
+
+            <div className="form-group">
+              <label>Часы</label>
+              <input type="number" step="0.5" value={hours} onChange={(e) => setHours(e.target.value)} placeholder="0" />
+            </div>
+
+            <div className="form-group">
+              <label>Дата</label>
+              <input
+                type="date"
+                value={taskDate}
+                onChange={(e) => setTaskDate(e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Описание</label>
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Опишите сделанную работу" rows="3" />
+            </div>
+
+            <div className="modal-buttons">
+              <button onClick={handleSaveEdit} className="btn-save">Сохранить</button>
+              <button onClick={() => setShowModal(false)} className="btn-cancel">Отмена</button>
             </div>
           </div>
         </div>
       )}
+
+      <style>{`
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: rgba(0, 0, 0, 0.5);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 1000;
+        }
+        
+        .modal {
+          background: white;
+          padding: 30px;
+          border-radius: 8px;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+          max-width: 500px;
+          width: 90%;
+        }
+        
+        .form-group {
+          margin-bottom: 15px;
+          display: flex;
+          flex-direction: column;
+        }
+        
+        .form-group label {
+          margin-bottom: 5px;
+          font-weight: 500;
+        }
+        
+        .form-group input,
+        .form-group select {
+          padding: 8px;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          font-size: 14px;
+        }
+        
+        .modal-buttons {
+          display: flex;
+          gap: 10px;
+          margin-top: 20px;
+        }
+        
+        .btn-save,
+        .btn-cancel {
+          flex: 1;
+          padding: 10px;
+          border: none;
+          border-radius: 4px;
+          font-size: 14px;
+          cursor: pointer;
+        }
+        
+        .btn-save {
+          background-color: #4CAF50;
+          color: white;
+        }
+        
+        .btn-cancel {
+          background-color: #f44336;
+          color: white;
+        }
+      `}</style>
     </div>
   )
 }
