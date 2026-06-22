@@ -8,6 +8,12 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create departments table (before employees that references it)
+CREATE TABLE IF NOT EXISTS departments (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL
+);
+
 -- Create employees table
 CREATE TABLE IF NOT EXISTS employees (
     id SERIAL PRIMARY KEY,
@@ -15,12 +21,6 @@ CREATE TABLE IF NOT EXISTS employees (
     last_name VARCHAR(255),
     department_id INTEGER REFERENCES departments(id),
     user_id INTEGER REFERENCES users(id)
-);
-
--- Create departments table
-CREATE TABLE IF NOT EXISTS departments (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL
 );
 
 -- Create projects table
@@ -42,15 +42,6 @@ CREATE TABLE IF NOT EXISTS attendance (
     date DATE,
     status VARCHAR(50) DEFAULT 'Черновик',
     description TEXT
-);
-
--- Create password_reset_tokens table for password recovery
-CREATE TABLE IF NOT EXISTS password_reset_tokens (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-    token VARCHAR(255) UNIQUE NOT NULL,
-    expires_at TIMESTAMP NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Insert sample users

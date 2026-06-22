@@ -2,8 +2,12 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
@@ -26,22 +30,35 @@ func main() {
 	}
 	defer db.Close()
 
-	// Создать таблицу для токенов сброса пароля
-	createTableSQL := `
-	CREATE TABLE IF NOT EXISTS password_reset_tokens (
-		id SERIAL PRIMARY KEY,
-		user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-		token VARCHAR(255) UNIQUE NOT NULL,
-		expires_at TIMESTAMP NOT NULL,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-	);
-	`
-
-	_, err = db.Exec(createTableSQL)
+	// Выполнить все SQL файлы миграций в порядке
+	migrationsDir := filepath.Join("migrations")
+	files, err := ioutil.ReadDir(migrationsDir)
 	if err != nil {
-		log.Fatalf("Ошибка при создании таблицы: %v", err)
+		log.Fatalf("Ошибка при чтении папки миграций: %v", err)
 	}
-	fmt.Println("✓ Таблица password_reset_tokens создана")
+
+	// Отсортировать файлы по имени
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].Name() < files[j].Name()
+	})
+
+	for _, file := range files {
+		if !strings.HasSuffix(file.Name(), ".sql") {
+			continue
+		}
+
+		filePath := filepath.Join(migrationsDir, file.Name())
+		content, err := ioutil.ReadFile(filePath)
+		if err != nil {
+			log.Fatalf("Ошибка при чтении файла %s: %v", file.Name(), err)
+		}
+
+		_, err = db.Exec(string(content))
+		if err != nil {
+			log.Fatalf("Ошибка при выполнении %s: %v", file.Name(), err)
+		}
+		fmt.Printf("✓ Выполнена миграция: %s\n", file.Name())
+	}
 
 	// Add email and position fields to employees table
 	addEmployeeFieldsSQL := `
@@ -51,10 +68,6 @@ func main() {
 
 	ALTER TABLE departments 
 	ADD COLUMN IF NOT EXISTS type VARCHAR(100) DEFAULT 'основное';
-
-	ALTER TABLE projects 
-	ADD COLUMN IF NOT EXISTS start_date DATE,
-	ADD COLUMN IF NOT EXISTS end_date DATE;
 	`
 
 	_, err = db.Exec(addEmployeeFieldsSQL)
@@ -63,24 +76,9 @@ func main() {
 	}
 	fmt.Println("✓ Новые поля добавлены в таблицы")
 
-	// Обновить пароль админа
-	updatePasswordSQL := `
-	UPDATE users 
-	SET password = '$2a$10$YH.RWKSPX0Wdzo3U9KOlHOEq4C4JuSlaJaDuU2i7XGfk85HfxoVCK'
-	WHERE email = 'admin@example.com';
-	`
-
-	result, err := db.Exec(updatePasswordSQL)
-	if err != nil {
-		log.Fatalf("Ошибка при обновлении пароля: %v", err)
-	}
-
-	rowsAffected, _ := result.RowsAffected()
-	fmt.Printf("✓ Пароль админа обновлён (%d строк обновлено)\n", rowsAffected)
-
-	// Вставить тестовые данные
+	// Вставить дополнительные тестовые данные
 	insertSampleData := `
-	-- Insert sample departments
+	-- Insert sample departments (if not exist)
 	INSERT INTO departments (id, name, type) VALUES (1, 'IT', 'основное') ON CONFLICT (id) DO NOTHING;
 	INSERT INTO departments (id, name, type) VALUES (2, 'HR', 'основное') ON CONFLICT (id) DO NOTHING;
 	INSERT INTO departments (id, name, type) VALUES (3, 'Finance', 'основное') ON CONFLICT (id) DO NOTHING;
@@ -89,11 +87,11 @@ func main() {
 	INSERT INTO departments (id, name, type) VALUES (6, 'Sales', 'удаленное') ON CONFLICT (id) DO NOTHING;
 
 	-- Insert sample employees
-	INSERT INTO employees (id, first_name, last_name, email, department_id, position) VALUES (1, 'Никита', 'Аминов', 'nikita.aminov@example.com', 1, 'project_manager') ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email;
-	INSERT INTO employees (id, first_name, last_name, email, department_id, position) VALUES (2, 'Иван', 'Петров', 'ivan.petrov@example.com', 1, 'employee') ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email;
-	INSERT INTO employees (id, first_name, last_name, email, department_id, position) VALUES (3, 'Мария', 'Сидорова', 'maria.sidorova@example.com', 2, 'hr_manager') ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email;
-	INSERT INTO employees (id, first_name, last_name, email, department_id, position) VALUES (4, 'Алексей', 'Иванов', 'alexey.ivanov@example.com', 3, 'employee') ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email;
-	INSERT INTO employees (id, first_name, last_name, email, department_id, position) VALUES (5, 'Евгений', 'Сидоров', 'eugene.sidorov@example.com', 4, 'project_manager') ON CONFLICT (id) DO NOTHING;
+	INSERT INTO employees (id, first_name, last_name, email, department_id, position) VALUES (1, 'Никита', 'Аминов', 'nikita.aminov@example.com', 1, 'project_manager') ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, position = EXCLUDED.position;
+	INSERT INTO employees (id, first_name, last_name, email, department_id, position) VALUES (2, 'Иван', 'Петров', 'ivan.petrov@example.com', 1, 'employee') ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, position = EXCLUDED.position;
+	INSERT INTO employees (id, first_name, last_name, email, department_id, position) VALUES (3, 'Мария', 'Сидорова', 'maria.sidorova@example.com', 2, 'hr_manager') ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, position = EXCLUDED.position;
+	INSERT INTO employees (id, first_name, last_name, email, department_id, position) VALUES (4, 'Алексей', 'Иванов', 'alexey.ivanov@example.com', 3, 'employee') ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, position = EXCLUDED.position;
+	INSERT INTO employees (id, first_name, last_name, email, department_id, position) VALUES (5, 'Евгений', 'Сидоров', 'eugene.sidorov@example.com', 4, 'project_manager') ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, position = EXCLUDED.position;
 
 	-- Insert sample projects
 	INSERT INTO projects (id, name, status, start_date, end_date) VALUES (1, 'Веб-сайт компании', 'В работе', '2026-06-01', '2026-08-31') ON CONFLICT (id) DO UPDATE SET start_date = EXCLUDED.start_date, end_date = EXCLUDED.end_date;

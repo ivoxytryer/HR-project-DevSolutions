@@ -1,0 +1,10 @@
+GetAttendance: 9 rows
+row: {ID:2 EmpID:1 ProjID:1 Hours:8 Date:2026-06-15T00:00:00Z Status:Черновик Description:Разработка основных страниц сайта}
+row: {ID:3 EmpID:2 ProjID:2 Hours:6 Date:2026-06-15T00:00:00Z Status:Отправлено Description:Проектирование архитектуры мобильного приложения}
+row: {ID:4 EmpID:3 ProjID:3 Hours:4 Date:2026-06-15T00:00:00Z Status:Черновик Description:Сбор данных для отчётности}
+row: {ID:5 EmpID:1 ProjID:1 Hours:8 Date:2026-06-15T00:00:00Z Status:Черновик Description:Разработка основных страниц сайта}
+row: {ID:6 EmpID:2 ProjID:2 Hours:6 Date:2026-06-15T00:00:00Z Status:Отправлено Description:Проектирование архитектуры мобильного приложения}
+row: {ID:7 EmpID:3 ProjID:3 Hours:4 Date:2026-06-15T00:00:00Z Status:Черновик Description:Сбор данных для отчётности}
+row: {ID:8 EmpID:4 ProjID:5 Hours:7 Date:2026-06-16T00:00:00Z Status:Утверждено Description:Настройка облачной инфраструктуры}
+row: {ID:9 EmpID:5 ProjID:6 Hours:5 Date:2026-06-16T00:00:00Z Status:Отправлено Description:Подготовка документации}
+row: {ID:10 EmpID:1 ProjID:4 Hours:6 Date:2026-06-17T00:00:00Z Status:Черновик Description:Завершение интеграции API}
