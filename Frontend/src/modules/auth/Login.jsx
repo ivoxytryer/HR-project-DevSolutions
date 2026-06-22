@@ -30,16 +30,11 @@ export default function Login() {
 
     try {
       if (isRegister) {
-        // Registration
-        // const { register } = useAuth()
-        // await register(email, password)
-        // For now, just login
         setError('Регистрация будет доступна позже')
         setLoading(false)
       } else {
-        // Login
+
         await login(email, password)
-        // App component will automatically redirect after user is set
       }
     } catch (err) {
       setError('Ошибка авторизации. Проверьте email и пароль')
